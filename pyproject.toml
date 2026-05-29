@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pa-agent-copilot-skill"
+version = "1.0.0"
+description = "Price Action AI analysis skill for Copilot CLI — two-stage K-line analysis (MIT)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "PA Agent Team" }]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "openai>=1.40",
+    "tiktoken>=0.7",
+    "jsonschema>=4.22",
+    "pydantic>=2.7",
+    "tvdatafeed @ git+https://github.com/rongardF/tvdatafeed.git",
+]
+
+[tool.setuptools.packages.find]
+include = ["pa_agent*"]

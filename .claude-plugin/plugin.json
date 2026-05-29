@@ -1,0 +1,16 @@
+{
+  "name": "pa-agent-copilot-skill",
+  "description": "PA Agent price action analysis skill - two-stage K-line analysis using Al Brooks methodology",
+  "version": "1.0.0",
+  "author": {
+    "name": "PA Agent"
+  },
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "trading",
+    "price-action",
+    "kline",
+    "analysis"
+  ]
+}

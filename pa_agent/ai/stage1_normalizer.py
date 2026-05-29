@@ -1,0 +1,334 @@
+"""Normalize common Stage 1 AI JSON variants before schema validation."""
+from __future__ import annotations
+
+import copy
+import logging
+import re
+from typing import Any
+
+from pa_agent.ai.trace_normalize import normalize_stage1_traces
+
+logger = logging.getLogger(__name__)
+
+# Common model aliases for on-disk strategy file names.
+_STRATEGY_FILE_ALIASES: dict[str, str] = {
+    "交易区间分析识别.txt": "震荡区间分析识别.txt",
+    "交易区间交易策略.txt": "震荡区间交易策略.txt",
+    "宽通道分析识别.txt": "文件13-窄通道与宽通道策略.txt",
+    "宽通道交易策略.txt": "文件13-窄通道与宽通道策略.txt",
+}
+
+_BAR_ROLE_ALIASES: dict[str, str] = {
+    "continue": "confirmation",
+    "continued": "confirmation",
+    "continuation": "confirmation",
+    "follow": "confirmation",
+    "follow_through": "confirmation",
+    "follow-through": "confirmation",
+    "confirm": "confirmation",
+    "confirmed": "confirmation",
+    "reversal": "signal",
+    "breakout": "signal",
+    "setup": "signal",
+    "pullback": "test",
+    "retest": "test",
+    "failure": "trap",
+    "failed": "trap",
+    "exhaustion": "climax",
+    "trend": "trend_bull",  # ambiguous → default bullish
+    "趋势阳线": "trend_bull",
+    "趋势阴线": "trend_bear",
+    "延续": "confirmation",
+    "跟随": "confirmation",
+    "确认": "confirmation",
+    "结构": "structure",
+    "信号": "signal",
+    "入场": "entry",
+    "噪音": "noise",
+    "噪声": "noise",
+    "陷阱": "trap",
+    "高潮": "climax",
+    "测试": "test",
+    "transition": "structure",
+    "transitional": "structure",
+    "过渡": "structure",
+}
+
+# Model often omits the trailing "s" on strengthens_* / weakens_*.
+_CONTEXT_EFFECT_ALIASES: dict[str, str] = {
+    "strengthen_bull": "strengthens_bull",
+    "strengthen_bear": "strengthens_bear",
+    "strengthens_bull": "strengthens_bull",
+    "strengthens_bear": "strengthens_bear",
+    "strengthens_bulls": "strengthens_bull",   # AI typo: extra 's'
+    "strengthens_bears": "strengthens_bear",   # AI typo: extra 's'
+    "weakens_bull": "weakens_bull",
+    "weakens_bear": "weakens_bear",
+    "weaken_bull": "weakens_bull",
+    "weaken_bear": "weakens_bear",
+    "weakens_bulls": "weakens_bull",           # AI typo: extra 's'
+    "weakens_bears": "weakens_bear",           # AI typo: extra 's'
+    "neutral": "neutral",
+    "transition": "transition",
+}
+
+
+def _hoist_bar_by_bar_summary(out: dict[str, Any]) -> None:
+    """Move bar_by_bar_summary from bar_analysis to root when the model nests it."""
+    root = out.get("bar_by_bar_summary")
+    if isinstance(root, list) and root:
+        return
+    ba = out.get("bar_analysis")
+    if not isinstance(ba, dict):
+        return
+    nested = ba.get("bar_by_bar_summary")
+    if not isinstance(nested, list) or not nested:
+        return
+    out["bar_by_bar_summary"] = nested
+    ba.pop("bar_by_bar_summary", None)
+    logger.debug("Hoisted bar_by_bar_summary from bar_analysis to root (%s items)", len(nested))
+
+
+def _normalize_strategy_file_names(files: Any) -> list[str]:
+    if not isinstance(files, list):
+        return []
+    out: list[str] = []
+    for item in files:
+        if not isinstance(item, str):
+            continue
+        name = _STRATEGY_FILE_ALIASES.get(item.strip(), item.strip())
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
+def _normalize_bar_by_bar_roles(out: dict[str, Any]) -> None:
+    summary = out.get("bar_by_bar_summary")
+    if not isinstance(summary, list):
+        return
+    for item in summary:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        if not isinstance(role, str):
+            continue
+        key = role.strip().lower()
+        normalized = _BAR_ROLE_ALIASES.get(key)
+        if normalized:
+            item["role"] = normalized
+            logger.debug("Mapped bar_by_bar_summary role %r -> %s", role, normalized)
+
+
+def _normalize_bar_by_bar_context_effects(out: dict[str, Any]) -> None:
+    summary = out.get("bar_by_bar_summary")
+    if not isinstance(summary, list):
+        return
+    for item in summary:
+        if not isinstance(item, dict):
+            continue
+        effect = item.get("context_effect")
+        if not isinstance(effect, str):
+            continue
+        key = effect.strip().lower()
+        normalized = _CONTEXT_EFFECT_ALIASES.get(key)
+        if normalized and normalized != effect:
+            item["context_effect"] = normalized
+            logger.debug(
+                "Mapped bar_by_bar_summary context_effect %r -> %s",
+                effect,
+                normalized,
+            )
+
+
+def _summary_bar_seq(bar_label: object) -> int | None:
+    m = re.search(r"K\s*(\d+)", str(bar_label or ""), re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
+def _pad_bar_by_bar_summary_to_minimum(
+    out: dict[str, Any],
+    *,
+    kline_frame: Any = None,
+) -> None:
+    """Pad bar_by_bar_summary to min(8, n_bars) using geometry stubs for missing K1..Kn."""
+    summary = out.get("bar_by_bar_summary")
+    if not isinstance(summary, list) or kline_frame is None:
+        return
+
+    bars = getattr(kline_frame, "bars", None) or ()
+    seqs = [int(getattr(b, "seq", 0)) for b in bars if getattr(b, "seq", None)]
+    n_bars = max(seqs) if seqs else 0
+    if n_bars < 1:
+        return
+
+    expected_min = min(8, n_bars) if n_bars >= 8 else n_bars
+    if len(summary) >= expected_min:
+        return
+
+    present = {
+        seq
+        for item in summary
+        if isinstance(item, dict)
+        for seq in (_summary_bar_seq(item.get("bar")),)
+        if seq is not None
+    }
+    missing = [seq for seq in range(expected_min, 0, -1) if seq not in present]
+    if not missing:
+        return
+
+    from pa_agent.ai.kline_features import compute_kline_geometry_features
+
+    features = {f.seq: f for f in compute_kline_geometry_features(kline_frame, limit=12)}
+    padded: list[dict[str, Any]] = []
+    for seq in missing:
+        feat = features.get(seq)
+        bar_type = feat.bar_type if feat else "doji"
+        padded.append(
+            {
+                "bar": f"K{seq}",
+                "role": "structure",
+                "bar_type": bar_type,
+                "context_effect": "neutral",
+                "follow_through": "pending" if seq == 1 else "no",
+                "trapped_side": "none",
+                "reason": (
+                    f"程序补全K{seq}（模型仅写了{len(summary)}条摘要，窗口需至少{expected_min}根）；"
+                    f"几何分类={bar_type}，细节见K线几何特征表。"
+                ),
+            }
+        )
+
+    merged = padded + [x for x in summary if isinstance(x, dict)]
+    merged.sort(key=lambda x: _summary_bar_seq(x.get("bar")) or 0, reverse=True)
+    out["bar_by_bar_summary"] = merged
+    logger.debug(
+        "bar_by_bar_summary padded %s -> %s items (expected_min=%s)",
+        len(summary),
+        len(merged),
+        expected_min,
+    )
+
+
+_INCREMENTAL_TRACKED_FIELDS = (
+    "cycle_position",
+    "alternative_cycle_position",
+    "direction",
+    "diagnosis_confidence",
+    "market_phase",
+    "transition_risk",
+    "gate_result",
+    "entry_setup",
+    "spike_stage",
+)
+
+
+def _incremental_summary_from_risk_warning(risk_warning: str) -> str | None:
+    text = (risk_warning or "").strip()
+    if not text:
+        return None
+    for marker in ("相对上一轮", "相对上轮", "本轮", "新增K"):
+        idx = text.find(marker)
+        if idx >= 0:
+            chunk = text[idx:].split("。", 1)[0].strip()
+            if len(chunk) >= 16:
+                return chunk + ("。" if not chunk.endswith("。") else "")
+    return None
+
+
+def _fill_incremental_delta(
+    out: dict[str, Any],
+    *,
+    new_bar_count: int,
+    previous_stage1: dict[str, Any] | None = None,
+) -> None:
+    """Synthesize incremental_delta when the model outputs a full stage1 JSON without it."""
+    if new_bar_count <= 0:
+        return
+
+    delta = out.get("incremental_delta")
+    if not isinstance(delta, dict):
+        delta = {}
+        out["incremental_delta"] = delta
+
+    expected_bars = [f"K{i}" for i in range(1, new_bar_count + 1)]
+    bars = delta.get("new_closed_bars")
+    if not isinstance(bars, list) or len(bars) != new_bar_count:
+        delta["new_closed_bars"] = expected_bars
+        logger.debug(
+            "incremental_delta.new_closed_bars filled -> %s",
+            expected_bars,
+        )
+
+    summary = str(delta.get("summary", "") or "").strip()
+    if len(summary) < 16:
+        from_rw = _incremental_summary_from_risk_warning(
+            str(out.get("risk_warning", "") or "")
+        )
+        if from_rw:
+            delta["summary"] = from_rw
+        else:
+            delta["summary"] = (
+                f"本轮新增{new_bar_count}根已收盘K线（{', '.join(expected_bars)}），"
+                "已结合完整K线窗口更新阶段一诊断与闸门判断。"
+            )
+        logger.debug("incremental_delta.summary synthesized")
+
+    changed = delta.get("changed_fields")
+    if not isinstance(changed, list):
+        changed = []
+        delta["changed_fields"] = changed
+    if previous_stage1 and not changed:
+        for key in _INCREMENTAL_TRACKED_FIELDS:
+            cur = str(out.get(key, "") or "").strip().lower()
+            prev = str(previous_stage1.get(key, "") or "").strip().lower()
+            if cur != prev:
+                changed.append(key)
+
+
+def normalize_stage1(
+    obj: dict[str, Any],
+    *,
+    normalization_mode: str = "strict",
+    kline_frame: Any = None,
+    incremental_new_bar_count: int = 0,
+    incremental_previous_stage1: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a copy of *obj* with known AI quirks corrected."""
+    out = copy.deepcopy(obj)
+    lenient = normalization_mode == "lenient"
+
+    if "strategy_files_needed" not in out or out.get("strategy_files_needed") is None:
+        alt = out.pop("recommended_strategy_files", None)
+        if alt is not None:
+            out["strategy_files_needed"] = _normalize_strategy_file_names(alt)
+            logger.debug("Mapped recommended_strategy_files -> strategy_files_needed")
+        elif out.get("cycle_position") and out.get("direction"):
+            try:
+                from pa_agent.ai.router import route_strategy_files
+
+                out["strategy_files_needed"] = route_strategy_files(out)
+                logger.debug("Filled strategy_files_needed from router")
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("router fallback for strategy_files_needed failed: %s", exc)
+                out.setdefault("strategy_files_needed", [])
+    else:
+        out["strategy_files_needed"] = _normalize_strategy_file_names(
+            out.get("strategy_files_needed")
+        )
+
+    from pa_agent.ai.pattern_routing import sync_detected_patterns_field
+
+    sync_detected_patterns_field(out)
+
+    _hoist_bar_by_bar_summary(out)
+    normalize_stage1_traces(out, normalization_mode=normalization_mode)
+    _normalize_bar_by_bar_roles(out)
+    _normalize_bar_by_bar_context_effects(out)
+    _pad_bar_by_bar_summary_to_minimum(out, kline_frame=kline_frame)
+    _fill_incremental_delta(
+        out,
+        new_bar_count=incremental_new_bar_count,
+        previous_stage1=incremental_previous_stage1,
+    )
+
+    return out

@@ -1,0 +1,39 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.idea/
+.vscode/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+
+# Local secrets & settings
+.env
+.env.*
+config/settings.json
+config/settings.local.json
+config/exception_state.json
+config/secret.key
+*.pem
+*.key
+
+# Runtime artifacts
+logs/*
+!logs/.gitkeep
+
+records/**/*
+!records/**/.gitkeep
+
+experience/**/*
+!experience/**/.gitkeep
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
