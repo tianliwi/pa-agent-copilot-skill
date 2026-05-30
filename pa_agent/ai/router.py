@@ -15,27 +15,27 @@ logger = logging.getLogger(__name__)
 # ── File name constants ────────────────────────────────────────────────────────
 
 _BULLISH_CHANNEL_FILES = [
-    "上涨通道分析识别.txt",
-    "上涨通道交易策略.txt",
+    "上涨通道分析识别_compact.txt",
+    "上涨通道交易策略_compact.txt",
 ]
 _BEARISH_CHANNEL_FILES = [
-    "下跌通道分析识别.txt",
-    "下跌通道交易策略.txt",
+    "下跌通道分析识别_compact.txt",
+    "下跌通道交易策略_compact.txt",
 ]
 _CHANNEL_WIDTH_FILE = "文件13-窄通道与宽通道策略.txt"
 
 _BULLISH_SPIKE_FILES = [
-    "极速上涨分析识别.txt",
-    "极速上涨交易策略.txt",
+    "极速上涨分析识别_compact.txt",
+    "极速上涨交易策略_compact.txt",
 ]
 _BEARISH_SPIKE_FILES = [
-    "极速下跌分析识别.txt",
-    "极速下跌交易策略.txt",
+    "极速下跌分析识别_compact.txt",
+    "极速下跌交易策略_compact.txt",
 ]
 
 _RANGE_FILES = [
-    "震荡区间分析识别.txt",
-    "震荡区间交易策略.txt",
+    "震荡区间分析识别_compact.txt",
+    "震荡区间交易策略_compact.txt",
 ]
 
 _WEDGE_FILE = "文件14-楔形形态分析交易.txt"
@@ -48,21 +48,21 @@ _MAGNET_FILE = "文件22-信号失败后的磁力位.txt"
 
 # All valid file names (used for dedup validation)
 _ALL_VALID_FILES: frozenset[str] = frozenset([
-    "提示词大纲_人设与思维方式.txt",
-    "市场诊断框架.txt",
-    "文件16-K线信号识别.txt",
-    "文件17-止损和止盈与仓位管理.txt",
-    "上涨通道分析识别.txt",
-    "上涨通道交易策略.txt",
+    "提示词大纲_人设与思维方式_compact.txt",
+    "市场诊断框架_compact.txt",
+    "文件16-K线信号识别_compact.txt",
+    # "文件17-止损和止盈与仓位管理.txt",
+    "上涨通道分析识别_compact.txt",
+    "上涨通道交易策略_compact.txt",
     "文件13-窄通道与宽通道策略.txt",
-    "下跌通道分析识别.txt",
-    "下跌通道交易策略.txt",
-    "极速上涨分析识别.txt",
-    "极速上涨交易策略.txt",
-    "极速下跌分析识别.txt",
-    "极速下跌交易策略.txt",
-    "震荡区间分析识别.txt",
-    "震荡区间交易策略.txt",
+    "下跌通道分析识别_compact.txt",
+    "下跌通道交易策略_compact.txt",
+    "极速上涨分析识别_compact.txt",
+    "极速上涨交易策略_compact.txt",
+    "极速下跌分析识别_compact.txt",
+    "极速下跌交易策略_compact.txt",
+    "震荡区间分析识别_compact.txt",
+    "震荡区间交易策略_compact.txt",
     "文件14-楔形形态分析交易.txt",
     "文件15-二次入场机会.txt",
     "文件18-突破失败与突破测试.txt",

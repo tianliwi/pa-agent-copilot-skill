@@ -399,57 +399,57 @@ _NEXT_BAR_PREDICTION_INSTRUCTION = """\
 
 # txt files merged into each stage prompt (order preserved)
 COMMON_SYSTEM_STAGE1_TXT_FILES: tuple[str, ...] = (
-    "提示词大纲_人设与思维方式.txt",
+    "提示词大纲_人设与思维方式_compact.txt",
     "二元决策_闸门.txt",
 )
 COMMON_SYSTEM_STAGE2_TXT_FILES: tuple[str, ...] = (
-    "提示词大纲_人设与思维方式.txt",
+    "提示词大纲_人设与思维方式_compact.txt",
     "二元决策.txt",
 )
 # Back-compat alias for UI helpers that list “common” files (Stage 2 full tree).
 COMMON_SYSTEM_PROMPT_TXT_FILES: tuple[str, ...] = COMMON_SYSTEM_STAGE2_TXT_FILES
 
 STAGE1_TASK_PROMPT_TXT_FILES: tuple[str, ...] = (
-    "市场诊断框架.txt",
-    "文件16-K线信号识别.txt",
-    "逐棒分析检查单.txt",
+    "市场诊断框架_compact.txt",
+    "文件16-K线信号识别_compact.txt",
+    "逐棒分析检查单_compact.txt",
 )
 
 _CHANNEL_FILE_GROUPS: dict[str, tuple[str, ...]] = {
     "bullish": (
-        "上涨通道分析识别.txt",
-        "上涨通道交易策略.txt",
+        "上涨通道分析识别_compact.txt",
+        "上涨通道交易策略_compact.txt",
     ),
     "bearish": (
-        "下跌通道分析识别.txt",
-        "下跌通道交易策略.txt",
+        "下跌通道分析识别_compact.txt",
+        "下跌通道交易策略_compact.txt",
     ),
 }
 _SPIKE_FILE_GROUPS: dict[str, tuple[str, ...]] = {
     "bullish": (
-        "极速上涨分析识别.txt",
-        "极速上涨交易策略.txt",
+        "极速上涨分析识别_compact.txt",
+        "极速上涨交易策略_compact.txt",
     ),
     "bearish": (
-        "极速下跌分析识别.txt",
-        "极速下跌交易策略.txt",
+        "极速下跌分析识别_compact.txt",
+        "极速下跌交易策略_compact.txt",
     ),
 }
 
 STAGE2_BASE_PROMPT_TXT_FILES: tuple[str, ...] = (
-    "逐棒分析检查单.txt",
-    "文件16-K线信号识别.txt",
+    "逐棒分析检查单_compact.txt",
+    "文件16-K线信号识别_compact.txt",
 )
 
 STAGE2_FULL_STRATEGY_PROMPT_TXT_FILES: tuple[str, ...] = (
-    "上涨通道分析识别.txt",
-    "上涨通道交易策略.txt",
-    "下跌通道分析识别.txt",
-    "下跌通道交易策略.txt",
-    "极速上涨分析识别.txt",
-    "极速上涨交易策略.txt",
-    "极速下跌分析识别.txt",
-    "极速下跌交易策略.txt",
+    "上涨通道分析识别_compact.txt",
+    "上涨通道交易策略_compact.txt",
+    "下跌通道分析识别_compact.txt",
+    "下跌通道交易策略_compact.txt",
+    "极速上涨分析识别_compact.txt",
+    "极速上涨交易策略_compact.txt",
+    "极速下跌分析识别_compact.txt",
+    "极速下跌交易策略_compact.txt",
     "震荡区间分析识别.txt",
     "震荡区间交易策略.txt",
     "文件13-窄通道与宽通道策略.txt",
