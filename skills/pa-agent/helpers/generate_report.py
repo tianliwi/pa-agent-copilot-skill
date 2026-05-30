@@ -432,30 +432,49 @@ def generate_markdown(
     w("## 二、市场预测")
     w("")
 
-    next_bar = decision.get("next_bar_prediction") or {}
+    next_bar = decision.get("next_bar_prediction") or stage2.get("next_bar_prediction") or {}
     if isinstance(next_bar, dict) and next_bar:
+        # Direction prediction
+        nb_direction = text(next_bar.get("direction"), "")
+        dir_map = {"bullish": "🟢 看涨", "bearish": "🔴 看跌", "neutral": "⚪ 中性"}
+        nb_dir_str = dir_map.get(nb_direction, nb_direction or "未知")
+        w(f"**预测方向**：{nb_dir_str}")
+        w("")
+
+        # Always show probability distribution
+        prob = next_bar.get("probability") or next_bar.get("probabilities") or {}
+        bull_p = text(prob.get("bullish"), "?")
+        bear_p = text(prob.get("bearish"), "?")
+        neut_p = text(prob.get("neutral"), "?")
+        w("### 各方向概率")
+        w("")
+        w("| 方向 | 概率 | 说明 |")
+        w("|------|------|------|")
+        w(f"| 🟢 看涨 | **{bull_p}%** | 价格上涨 |")
+        w(f"| 🔴 看跌 | **{bear_p}%** | 价格下跌 |")
+        w(f"| ⚪ 中性 | **{neut_p}%** | 横盘震荡 |")
+        w("")
+
+        # Scenario descriptions
         scenario_bull = text(next_bar.get("scenario_bull"), "")
         scenario_bear = text(next_bar.get("scenario_bear"), "")
         scenario_neutral = text(next_bar.get("scenario_neutral"), "")
 
-        if scenario_bull:
-            w(f"**🟢 看涨情景**：{scenario_bull}")
-            w("")
-        if scenario_bear:
-            w(f"**🔴 看跌情景**：{scenario_bear}")
-            w("")
-        if scenario_neutral:
-            w(f"**⚪ 中性情景**：{scenario_neutral}")
-            w("")
-
-        # Also handle structured probability format
-        prob = next_bar.get("probability") or next_bar.get("probabilities") or {}
-        if prob:
-            w(f"概率分布：看涨 {text(prob.get('bullish'), '?')}% / 看跌 {text(prob.get('bearish'), '?')}% / 中性 {text(prob.get('neutral'), '?')}%")
-            w("")
+        if scenario_bull or scenario_bear or scenario_neutral:
+            if scenario_bull:
+                w(f"**🟢 看涨情景**：{scenario_bull}")
+                w("")
+            if scenario_bear:
+                w(f"**🔴 看跌情景**：{scenario_bear}")
+                w("")
+            if scenario_neutral:
+                w(f"**⚪ 中性情景**：{scenario_neutral}")
+                w("")
 
         reasoning_nb = text(next_bar.get("reason") or next_bar.get("reasoning"), "")
         if reasoning_nb:
+            w("### 预测推理")
+            w("")
             w(f"> {reasoning_nb}")
             w("")
     else:
@@ -611,6 +630,82 @@ def md_to_pdf(md_path: Path, pdf_path: Path, chart_path: Path) -> None:
         browser.close()
 
 
+# ── Operation Report (separate JSON) ─────────────────────────────────────────
+
+def generate_operation_report(
+    frame: dict | list,
+    stage1: dict,
+    stage2: dict,
+    symbol: str,
+    timeframe: str,
+    report_dir: Path,
+) -> Path:
+    """Generate operation_report.json with token usage and timing stats."""
+    import tempfile
+
+    frame_chars = len(json.dumps(frame, ensure_ascii=False))
+    stage1_chars = len(json.dumps(stage1, ensure_ascii=False))
+    stage2_chars = len(json.dumps(stage2, ensure_ascii=False))
+
+    # Try to find prompt temp files for this symbol
+    tmp_dir = Path(tempfile.gettempdir())
+    prompt_files = {
+        "stage1_system": tmp_dir / f"pa_s1_system_{symbol}.txt",
+        "stage1_user": tmp_dir / f"pa_s1_user_{symbol}.txt",
+        "stage2_system": tmp_dir / f"pa_s2_system_{symbol}.txt",
+        "stage2_user": tmp_dir / f"pa_s2_user_{symbol}.txt",
+    }
+
+    prompt_sizes: dict[str, int] = {}
+    for key, path in prompt_files.items():
+        prompt_sizes[key] = path.stat().st_size if path.exists() else 0
+
+    total_input = sum(prompt_sizes.values())
+    total_output = stage1_chars + stage2_chars
+    # Rough token estimate: ~1.5 chars per token for Chinese/mixed content
+    est_token = lambda chars: int(chars / 1.5) if chars > 0 else 0
+
+    report = {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "generated_at": datetime.now().isoformat(),
+        "token_usage": {
+            "stage1": {
+                "system_prompt_chars": prompt_sizes["stage1_system"],
+                "user_prompt_chars": prompt_sizes["stage1_user"],
+                "output_chars": stage1_chars,
+                "system_prompt_tokens_est": est_token(prompt_sizes["stage1_system"]),
+                "user_prompt_tokens_est": est_token(prompt_sizes["stage1_user"]),
+                "output_tokens_est": est_token(stage1_chars),
+            },
+            "stage2": {
+                "system_prompt_chars": prompt_sizes["stage2_system"],
+                "user_prompt_chars": prompt_sizes["stage2_user"],
+                "output_chars": stage2_chars,
+                "system_prompt_tokens_est": est_token(prompt_sizes["stage2_system"]),
+                "user_prompt_tokens_est": est_token(prompt_sizes["stage2_user"]),
+                "output_tokens_est": est_token(stage2_chars),
+            },
+            "totals": {
+                "input_chars": total_input,
+                "output_chars": total_output,
+                "input_tokens_est": est_token(total_input),
+                "output_tokens_est": est_token(total_output),
+                "total_chars": total_input + total_output,
+                "total_tokens_est": est_token(total_input + total_output),
+            },
+        },
+        "data_stats": {
+            "frame_chars": frame_chars,
+            "bar_count": len(frame) if isinstance(frame, list) else frame.get("bar_count", "?"),
+        },
+    }
+
+    out_path = report_dir / "operation_report.json"
+    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out_path
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -642,15 +737,23 @@ def main() -> None:
         md_path = report_dir / f"PA_Report_{symbol}_{timeframe}.md"
         pdf_path = report_dir / f"PA_Report_{symbol}_{timeframe}.pdf"
 
+        # Save stage1 and stage2 JSON into the records directory
+        stage1_out = report_dir / f"stage1_{symbol}_{timeframe}.json"
+        stage2_out = report_dir / f"stage2_{symbol}_{timeframe}.json"
+        stage1_out.write_text(json.dumps(stage1, ensure_ascii=False, indent=2), encoding="utf-8")
+        stage2_out.write_text(json.dumps(stage2, ensure_ascii=False, indent=2), encoding="utf-8")
+
         generate_chart(frame, stage1, stage2, decision, symbol, timeframe, exchange, chart_path)
         generate_markdown(frame, stage1, stage2, decision, symbol, timeframe, exchange, chart_path, md_path)
         md_to_pdf(md_path, pdf_path, chart_path)
+        op_report_path = generate_operation_report(frame, stage1, stage2, symbol, timeframe, report_dir)
 
         print(json.dumps({
             "report_dir": str(report_dir),
             "md_path": str(md_path),
             "pdf_path": str(pdf_path),
             "chart_path": str(chart_path),
+            "operation_report": str(op_report_path),
         }, ensure_ascii=False))
     except Exception as exc:
         import traceback
