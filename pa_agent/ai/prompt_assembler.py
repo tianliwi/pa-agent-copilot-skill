@@ -561,7 +561,8 @@ class PromptAssembler:
         """Load a prompt file by name. Returns empty string on error."""
         path = self._prompt_dir / filename
         try:
-            return path.read_text(encoding="utf-8")
+            # Use utf-8-sig to transparently strip BOM if present
+            return path.read_text(encoding="utf-8-sig")
         except OSError as exc:
             logger.error("Failed to load prompt file %s: %s", filename, exc)
             return f"[ERROR: could not load {filename}]"
