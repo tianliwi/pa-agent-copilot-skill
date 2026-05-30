@@ -28,7 +28,7 @@ analyze XAUUSD 15m
 analyze MSFT 1d on NASDAQ
 ```
 
-The report will be available under <records> folder.
+The report will be available under records folder.
 
 ## Requirements
 
