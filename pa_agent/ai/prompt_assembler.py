@@ -439,7 +439,6 @@ _SPIKE_FILE_GROUPS: dict[str, tuple[str, ...]] = {
 STAGE2_BASE_PROMPT_TXT_FILES: tuple[str, ...] = (
     "逐棒分析检查单.txt",
     "文件16-K线信号识别.txt",
-    "文件17-止损和止盈与仓位管理.txt",
 )
 
 STAGE2_FULL_STRATEGY_PROMPT_TXT_FILES: tuple[str, ...] = (
@@ -785,7 +784,7 @@ class PromptAssembler:
             stage1_json=stage1_json,
             strategy_files=strategy_files,
             experience_entries=experience_entries,
-            include_kline_table=True,
+            include_kline_table=False,
             decision_stance=decision_stance,
         )
         return [
