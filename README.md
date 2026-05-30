@@ -13,7 +13,7 @@ Fetches K-line data from TradingView, performs two-stage AI analysis:
 Install as a Copilot CLI skill:
 
 ```
-/install <github-user>/pa-agent-copilot-skill
+Install skill from https://github.com/tianliwi/pa-agent-copilot-skill/skills
 ```
 
 On first use, the skill will auto-create a Python virtual environment and install dependencies.
