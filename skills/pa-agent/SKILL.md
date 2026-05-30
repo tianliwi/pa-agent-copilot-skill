@@ -51,7 +51,6 @@ if (-not (Test-Path "$REPO_ROOT\venv")) {
     Write-Host "正在创建虚拟环境并安装依赖..."
     python -m venv "$REPO_ROOT\venv"
     & "$REPO_ROOT\venv\Scripts\pip.exe" install -e "$REPO_ROOT" --quiet
-    & "$REPO_ROOT\venv\Scripts\pip.exe" install matplotlib numpy fpdf2 --quiet
 }
 ```
 
@@ -76,7 +75,6 @@ fi
 if [ ! -d "$REPO_ROOT/venv" ]; then
     python3 -m venv "$REPO_ROOT/venv"
     "$REPO_ROOT/venv/bin/pip" install -e "$REPO_ROOT" --quiet
-    "$REPO_ROOT/venv/bin/pip" install matplotlib numpy fpdf2 --quiet
 fi
 ```
 
@@ -194,10 +192,7 @@ cd $REPO_ROOT && "$REPO_ROOT/venv/bin/python" "$HELPERS/generate_report.py" <fra
 - **逐 K 分析**：bar_by_bar_summary 全部条目 + 闸门轨迹
 - **下根 K 线预测 + 决策轨迹**
 
-> **依赖**：首次运行前需安装 `matplotlib`、`numpy`、`fpdf2`。在 Step 0 的 venv 安装后追加：
-> ```powershell
-> & "$REPO_ROOT\venv\Scripts\pip.exe" install matplotlib numpy fpdf2 --quiet
-> ```
+> **依赖**：`matplotlib` 和 `numpy` 已在 `pyproject.toml` 中声明，`pip install -e .`（Step 0）会自动安装。
 
 ## 错误处理
 

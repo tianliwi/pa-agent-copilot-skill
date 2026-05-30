@@ -18,7 +18,11 @@ dependencies = [
     "jsonschema>=4.22",
     "pydantic>=2.7",
     "tvdatafeed @ git+https://github.com/rongardF/tvdatafeed.git",
+    "matplotlib>=3.8",
 ]
+
+[project.optional-dependencies]
+pdf = ["markdown>=3.5", "playwright>=1.40"]
 
 [tool.setuptools.packages.find]
 include = ["pa_agent*"]

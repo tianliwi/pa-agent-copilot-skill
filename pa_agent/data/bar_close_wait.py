@@ -95,13 +95,6 @@ def reference_now_ms(
     return int(time.time() * 1000)
 
 
-def _looks_like_ashare_symbol(symbol: str | None) -> bool:
-    from pa_agent.data.market_defaults import normalize_ashare_tv_code
-
-    code = normalize_ashare_tv_code(symbol or "")
-    return len(code) == 6 and code.isdigit()
-
-
 def is_bar_still_forming(
     bar: KlineBar,
     timeframe: str,
@@ -114,15 +107,6 @@ def is_bar_still_forming(
         return False
     if now_ms is None:
         now_ms = int(time.time() * 1000)
-    tf = str(timeframe or "").strip().lower()
-    if tf == "1d" and _looks_like_ashare_symbol(symbol):
-        try:
-            from pa_agent.data.akshare_source import _ashare_session_open
-
-            if not _ashare_session_open():
-                return False
-        except ImportError:
-            pass
     duration_s = timeframe_to_seconds(timeframe)
     if duration_s is None:
         return True

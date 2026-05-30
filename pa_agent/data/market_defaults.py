@@ -3,6 +3,33 @@ from __future__ import annotations
 
 import re
 
+# ── A-share symbol normalisation (moved from akshare_source.py) ───────────────
+
+_STOCK_CODE_RE = re.compile(r"^\d{6}$")
+_INDEX_PREFIX_RE = re.compile(r"^(sh|sz)(\d{6})$", re.IGNORECASE)
+
+_INDEX_DIGITS = frozenset({
+    "000300", "000016", "000905", "000852",
+    "399001", "399006", "399300",
+})
+
+
+def normalize_ashare_symbol(symbol: str) -> str:
+    """Normalize user input to 6-digit stock code or ``sh``/``sz`` index id."""
+    raw = (symbol or "").strip()
+    if not raw:
+        return ""
+    m = _INDEX_PREFIX_RE.match(raw)
+    if m:
+        prefix, digits = m.group(1).lower(), m.group(2)
+        if digits in _INDEX_DIGITS:
+            return f"{prefix}{digits}"
+        return digits
+    digits = re.sub(r"\D", "", raw)
+    if len(digits) >= 6:
+        return digits[-6:]
+    return digits
+
 # MT5 broker spot gold (suffix varies by broker; m = common micro/mini suffix)
 GOLD_MT5_SYMBOL = "XAUUSDm"
 
@@ -98,8 +125,6 @@ def is_likely_crypto_symbol(symbol: str) -> bool:
 
 def normalize_gold_symbol_for_kind(kind: str, symbol: str) -> str:
     """Map crypto / MT5-style names to gold defaults for *kind*."""
-    from pa_agent.data.akshare_source import normalize_ashare_symbol
-
     sym = (symbol or "").strip()
     if kind == "akshare":
         code = normalize_ashare_symbol(sym)
@@ -132,8 +157,6 @@ def normalize_gold_tv_exchange(exchange: str) -> str:
 
 def normalize_ashare_tv_code(symbol: str) -> str:
     """Normalize user input to 6-digit A-share code for TradingView."""
-    from pa_agent.data.akshare_source import normalize_ashare_symbol
-
     raw = normalize_ashare_symbol(symbol)
     if raw.startswith(("sh", "sz")) and len(raw) >= 8:
         return raw[2:8]
